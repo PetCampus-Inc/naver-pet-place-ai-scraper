@@ -18,7 +18,6 @@ class Main:
             count = 0
             result = []
             for item in location_data_list:
-                print(item['id'])
                 crawler_data = self.crawler.get_place_details(item['id'])
                 result.append({**item, **crawler_data})
 
@@ -31,6 +30,8 @@ class Main:
             print("엑셀 파일이 생성되었습니다.")
         except Exception as e:
             print(f"에러 발생: {e}")
+        finally:
+            self.crawler.close()
 
 
 if __name__ == "__main__":
