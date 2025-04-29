@@ -2,13 +2,9 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
-import logging
+from logger import get_logger
 
-# 로깅 설정
-logger = logging.getLogger(__name__)
-
-# googleapiclient 경고 로그 비활성화
-logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
+log = get_logger()
 
 class BrowserManager:
     def __init__(self, wait_time=5):
@@ -33,16 +29,14 @@ class BrowserManager:
                 options=options
             )
             self.wait = WebDriverWait(self.driver, self.wait_time)
-            logger.info("크롬 드라이버가 성공적으로 초기화되었습니다.")
             return self.driver, self.wait
         except Exception as e:
-            logger.error(f"드라이버 초기화 중 오류 발생: {str(e)}")
+            log.error(f"드라이버 초기화 중 오류 발생: {str(e)}")
             raise
         
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.driver:
             try:
                 self.driver.quit()
-                logger.info("브라우저가 정상적으로 종료되었습니다.")
             except Exception as e:
-                logger.error(f"브라우저 종료 중 오류 발생: {str(e)}") 
+                log.error(f"브라우저 종료 중 오류 발생: {str(e)}") 
