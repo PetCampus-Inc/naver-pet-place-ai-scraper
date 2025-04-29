@@ -1,9 +1,9 @@
 from lib.crawler.browser_setup import BrowserManager
 from lib.crawler.crawler_home import CrawlerHome
 from lib.crawler.crawler_information import CrawlerInformation
-import logging
+from logger import get_logger
 
-logger = logging.getLogger(__name__)
+log = get_logger()
 
 class NaverPlaceCrawler:
     def __init__(self):
@@ -52,7 +52,7 @@ class NaverPlaceCrawler:
             return {**home, **information}
         
         except Exception as e:
-            logger.error(f"ID {place_id} 크롤링 중 오류 발생: {e}")
+            log.error(f"ID {place_id} 크롤링 중 오류 발생: {e}")
             return {}
         
     def close(self):
