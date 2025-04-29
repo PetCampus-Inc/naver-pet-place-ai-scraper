@@ -74,7 +74,7 @@ class Main:
         
     async def run(self):
         # 네이버 지도 검색 결과 가져오기
-        places_data = fetch_naver_place_list(self.location, self.keywords)[:4]
+        places_data = fetch_naver_place_list(self.location, self.keywords)
         if not places_data:
             log.error("검색 결과가 없습니다.")
             return
