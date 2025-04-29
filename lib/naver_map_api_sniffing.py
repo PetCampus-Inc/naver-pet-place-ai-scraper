@@ -1,4 +1,7 @@
 import requests
+from logger import get_logger
+
+log = get_logger()
 
 def fetch_naver_place_list(location, keywords):
     """네이버 지도 검색 API 스니핑 함수"""
@@ -29,7 +32,7 @@ def fetch_naver_place_list(location, keywords):
             data_list = response.json()["result"]["site"]["list"]
             raw_results.extend(data_list)
         except (requests.RequestException, KeyError, ValueError) as e:
-            print(f"네이버 지도 API 스니핑 실패 ({keyword}): {e}")
+            log.error(f"네이버 지도 API 스니핑 실패 ({location} {keyword}): {e}")
 
     filtered_data = []
     seen_ids = set()

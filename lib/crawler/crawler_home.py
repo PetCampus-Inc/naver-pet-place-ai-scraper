@@ -1,12 +1,14 @@
-import time
+import re
+
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
-import re
-
 from lib.upload_google_drive import UploadGoogleDrive
+from logger import get_logger
+
+log = get_logger()
 
 class CrawlerHome:
     def __init__(self, driver: webdriver.Chrome, wait: WebDriverWait, place_id: str):
@@ -70,7 +72,7 @@ class CrawlerHome:
 
             return response
         except Exception as e:
-            print(f"ID {self.place_id} 영업 시간 가져오기 오류 발생: {e}")
+            log.error(f"ID {self.place_id} 영업 시간 가져오기 오류 발생: {e}")
             return {}
     
     # 가격표 이미지 가져오기
@@ -91,7 +93,7 @@ class CrawlerHome:
             image_count_max = int(image_count_max_tag.text.split('/')[-1].strip() or 0)
 
         except Exception as e:
-            print(f"ID {self.place_id} 이미지 최대 개수 가져오기 오류 발생: {e}")
+            log.error(f"ID {self.place_id} 이미지 최대 개수 가져오기 오류 발생: {e}")
             return []
         
         # 이미지 URL 저장할 리스트
@@ -105,7 +107,7 @@ class CrawlerHome:
             first_image_url = self.uploader.upload_image(f"{self.place_id}_0", image_tag.get_attribute("src"))
             image_urls.append(first_image_url)
         except Exception as e:
-            print(f"ID {self.place_id} 첫 번째 이미지 가져오기 오류 발생: {e}")
+            log.error(f"ID {self.place_id} 첫 번째 이미지 가져오기 오류 발생: {e}")
             return []
  
         # 나머지 이미지 순회하기 (2번째부터 끝까지)
@@ -126,7 +128,7 @@ class CrawlerHome:
                 image_url = self.uploader.upload_image(f"{self.place_id}_{idx}", current_url)
                 image_urls.append(image_url)
         except Exception as e:
-            print(f"ID {self.place_id} 가격표 이미지 가져오기 오류 발생: {e}")
+            log.error(f"ID {self.place_id} 가격표 이미지 가져오기 오류 발생: {e}")
             return []
         
         return image_urls
@@ -145,7 +147,7 @@ class CrawlerHome:
 
             return reviews
         except Exception as e:
-            print(f"ID {self.place_id} 리뷰 가져오기 오류 발생: {e}")
+            log.error(f"ID {self.place_id} 리뷰 가져오기 오류 발생: {e}")
             return {}
 
     def get_home_data(self):
@@ -177,5 +179,5 @@ class CrawlerHome:
                 **reviews
             }
         except Exception as e:
-            print(f"ID {self.place_id} 메인 크롤링 오류 발생: {e}")
+            log.error(f"ID {self.place_id} 메인 크롤링 오류 발생: {e}")
             return {}

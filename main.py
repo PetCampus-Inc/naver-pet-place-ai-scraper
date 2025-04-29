@@ -3,19 +3,12 @@ import asyncio
 import concurrent.futures
 import os
 import multiprocessing
-import logging
+
 from lib.naver_map_api_sniffing import fetch_naver_place_list
 from lib.crawler.naver_place_crawler import NaverPlaceCrawler
+from logger import get_logger
 
-# 로깅 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(asctime)s - %(name)s - %(levelname)s - %(message)s]'
-)
-logger = logging.getLogger(__name__)
-
-# googleapiclient 경고 로그 비활성화
-logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
+log = get_logger()
 
 class Main:
     def __init__(self):
@@ -43,7 +36,7 @@ class Main:
                     if result:
                         results.append((place_id, result))
                 except Exception as e:
-                    logger.error(f"ID {place_id} 크롤링 처리 중 오류: {e}")
+                    log.error(f"ID {place_id} 크롤링 처리 중 오류: {e}")
         
         return results
     
@@ -73,32 +66,33 @@ class Main:
                             
                             # 진행 상태 로깅
                             completed += 1
-                            logger.info(f"[{completed}/{total}] {base_data[place_id]['업체명']} 크롤링 완료")
+                            log.info(f"[{completed}/{total}] {base_data[place_id]['업체명']} 크롤링 완료")
                 except Exception as e:
-                    logger.error(f"배치 {batch_index} 결과 처리 중 오류 발생: {e}")
-        
+                    log.error(f"배치 {batch_index} 결과 처리 중 오류 발생: {e}")
 
+        return results
+        
     async def run(self):
         # 네이버 지도 검색 결과 가져오기
-        places_data = fetch_naver_place_list(self.location, self.keywords)
+        places_data = fetch_naver_place_list(self.location, self.keywords)[:4]
         if not places_data:
-            logger.error("검색 결과가 없습니다.")
+            log.error("검색 결과가 없습니다.")
             return
         
         # 기본 데이터 추출
         base_data = {item['id']: item for item in places_data}
         place_ids = [item['id'] for item in places_data]
         
-        logger.info(f"총 {len(place_ids)}개 장소 스니핑 완료, 크롤링 시작")
+        log.info(f"총 {len(place_ids)}개 장소 스니핑 완료, 크롤링 시작")
         
         # 최적의 스레드 수 계산
         max_workers = self.get_optimal_workers()
-        logger.info(f"실행 스레드 수: {max_workers}")
+        log.info(f"실행 스레드 수: {max_workers}")
         
         # 각 스레드가 처리할 ID 배치 생성
         batch_size = max(5, len(place_ids) // max_workers)
         batches = [place_ids[i:i+batch_size] for i in range(0, len(place_ids), batch_size)]
-        
+
         try:
             # 병렬 크롤링 수행
             results = self.parallel_crawl(batches, base_data, max_workers)
@@ -107,9 +101,9 @@ class Main:
             df = pd.DataFrame(results)
             df.to_excel('dog_kindergarten.xlsx', index=False)
             
-            logger.info("엑셀 파일이 생성되었습니다.")
+            log.info("엑셀 파일이 생성되었습니다.")
         except Exception as e:
-            logger.error(f"에러 발생: {e}")
+            log.error(f"에러 발생: {e}")
 
 
 if __name__ == "__main__":
