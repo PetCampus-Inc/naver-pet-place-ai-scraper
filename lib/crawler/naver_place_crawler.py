@@ -1,7 +1,7 @@
 from lib.crawler.browser_setup import BrowserManager
 from lib.crawler.crawler_home import CrawlerHome
 from lib.crawler.crawler_information import CrawlerInformation
-from logger import get_logger
+from lib.logger import get_logger
 
 log = get_logger()
 

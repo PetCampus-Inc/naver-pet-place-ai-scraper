@@ -1,5 +1,5 @@
 import requests
-from logger import get_logger
+from lib.logger import get_logger
 
 log = get_logger()
 

@@ -5,7 +5,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from httplib2 import Http
 from oauth2client import file, client, tools
-from logger import get_logger
+from lib.logger import get_logger
 
 log = get_logger()
 
@@ -26,7 +26,7 @@ class UploadGoogleDrive:
         return 'image/png'
     
     # 구글 드라이브 API 인증
-    def _google_api_auth(self):
+    def google_drive_api_auth(self):
         SCOPES = 'https://www.googleapis.com/auth/drive.file'
         store = file.Storage('storage.json')    # 토큰 저장 파일
         creds = store.get()
@@ -41,7 +41,7 @@ class UploadGoogleDrive:
     # 이미지 업로드
     def upload_image(self, file_name: str, image_url: str) -> str | None:
         try:
-            drive = self._google_api_auth()
+            drive = self.google_drive_api_auth()
 
             # URL에서 데이터 스트리밍
             response = requests.get(image_url, stream=True)

@@ -6,7 +6,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
 from lib.upload_google_drive import UploadGoogleDrive
-from logger import get_logger
+from lib.logger import get_logger
 
 log = get_logger()
 
@@ -83,7 +83,7 @@ class CrawlerHome:
                 EC.presence_of_element_located((By.XPATH, "//a[contains(@class, 'place_bluelink') and contains(@class, 'iBUwB') and starts-with(text(), '가격')]"))
             )
             price_button.click()
-        except: return []
+        except: return ""
         
         # 이미지 최대 개수 가져오기
         try:
@@ -94,7 +94,7 @@ class CrawlerHome:
 
         except Exception as e:
             log.error(f"ID {self.place_id} 이미지 최대 개수 가져오기 오류 발생: {e}")
-            return []
+            return ""
         
         # 이미지 URL 저장할 리스트
         image_urls = []
@@ -108,7 +108,7 @@ class CrawlerHome:
             image_urls.append(first_image_url)
         except Exception as e:
             log.error(f"ID {self.place_id} 첫 번째 이미지 가져오기 오류 발생: {e}")
-            return []
+            return ""
  
         # 나머지 이미지 순회하기 (2번째부터 끝까지)
         try:
@@ -129,9 +129,9 @@ class CrawlerHome:
                 image_urls.append(image_url)
         except Exception as e:
             log.error(f"ID {self.place_id} 가격표 이미지 가져오기 오류 발생: {e}")
-            return []
+            return ""
         
-        return image_urls
+        return ",".join(image_urls)
 
     # 리뷰 가져오기
     def _get_reviews(self, soup: BeautifulSoup):
