@@ -20,7 +20,8 @@ class CrawlerInformation:
     # 텍스트 리스트 가져오기
     def _safe_select_all(self, soup: BeautifulSoup, selector):
         elements = soup.select(selector)
-        return [element.text for element in elements] if elements else []
+        results = [element.text for element in elements] if elements else []
+        return ",".join(results)
     
     # 링크 리스트 가져오기
     def _get_links(self, soup: BeautifulSoup):
