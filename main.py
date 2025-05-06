@@ -14,11 +14,19 @@ log = get_logger()
 
 class Main:
     def __init__(self):
-        self.location = input("검색할 지역을 입력하세요 (예: 서초구, 강남구 등): ")
+        self.location = self._input_location()
         self.keywords = ["강아지 유치원", "반려견 유치원", "강아지 호텔", "반려견 호텔", "애견 유치원", "애견 호텔"]
 
         self.max_retries = 3    # 크롤링 실패 시, 재시도 횟수
         self.retry_delay = 1    # 재시도 전, 딜레이 (초 단위)
+
+    def _input_location(self):
+        while True:
+            location = input("검색할 지역을 입력하세요 (예: 서초구, 강남구 등): ").strip()
+            if location:
+                break
+            print("지역을 입력해주세요. 빈 값은 허용되지 않습니다.")
+        return location
 
     async def run(self):
         log.info("크롤링 작업 시작")
@@ -49,7 +57,7 @@ class Main:
             results = merge_dict_lists_by_key('id', places_data, crawl_result)
 
             # 결과를 엑셀로 저장
-            dict_list_to_excel(results, self.location)
+            dict_list_to_excel(results, self.location, output_dir='/app/output')
             
             # 실행 시간 로깅
             elapsed_time = time.time() - start_time
