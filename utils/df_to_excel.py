@@ -1,20 +1,24 @@
+import os
 import pandas as pd
 import time
 from typing import List, Dict, Any
 from lib.logger import get_logger
 
-
 log = get_logger()
 
-def dict_list_to_excel(dict_list: List[Dict[str, Any]], name: str, chunk_size: int = 1000):
+def dict_list_to_excel(dict_list: List[Dict[str, Any]], name: str, output_dir='./output', chunk_size: int = 1000):
     """딕셔너리 리스트를 엑셀 파일로 저장하는 함수"""
 
+    # 출력 디렉토리 생성
+    os.makedirs(output_dir, exist_ok=True)
+    
     try:
-        name = f"{name}_{time.strftime('%Y%m%d_%H%M%S')}.xlsx"
+        file_name = f"{name}_{time.strftime('%Y%m%d_%H%M%S')}.xlsx"
+        file_path = os.path.join(output_dir, file_name)
         
         # 결과가 많을 경우 메모리 효율을 위해 청크 단위로 처리
         if len(dict_list) > chunk_size:
-            writer = pd.ExcelWriter(name, engine='xlsxwriter')
+            writer = pd.ExcelWriter(file_path, engine='xlsxwriter')
             
             # 청크 단위로 나누어 데이터프레임 생성 및 저장
             for i in range(0, len(dict_list), chunk_size):
@@ -34,17 +38,15 @@ def dict_list_to_excel(dict_list: List[Dict[str, Any]], name: str, chunk_size: i
         else:
             # 결과가 적을 경우 간단히 저장
             df = pd.DataFrame(dict_list)
-            df.to_excel(name, index=False)
+            df.to_excel(file_path, index=False)
         
-        log.info(f"엑셀 파일이 생성되었습니다: {name}")
+        log.info(f"엑셀 파일이 생성되었습니다: {file_path}")
     except Exception as e:
         log.error(f"결과 저장 중 오류 발생: {e}")
         # 에러 발생 시 CSV로 백업 저장 시도
         try:
-            backup_file = f"backup_{name}_{time.strftime('%Y%m%d_%H%M%S')}.csv"
+            backup_file = os.path.join(output_dir, f"backup_{name}_{time.strftime('%Y%m%d_%H%M%S')}.csv")
             pd.DataFrame(dict_list).to_csv(backup_file, index=False)
             log.info(f"백업 CSV 파일이 생성되었습니다: {backup_file}")
         except Exception as backup_error:
             log.error(f"백업 저장 중 오류 발생: {backup_error}")
-    
-    
