@@ -12,8 +12,8 @@ log = get_logger()
 class UploadGoogleDrive:
     def __init__(self):
         self.credential_file = 'token.json'
-        self.folder_id = '1o72Csal-45lJIABVg5374Ha88jF1LH9o'
-        pass
+        self.folder_id = '1glRDTBPsJdzv38czY20X6gfYO4-bDkoW'
+        self.drive = self.google_drive_api_auth()
 
     # 이미지 타입 추출
     def _get_image_mimetype(self, file_name: str) -> str:
@@ -41,7 +41,7 @@ class UploadGoogleDrive:
     # 이미지 업로드
     def upload_image(self, file_name: str, image_url: str) -> str | None:
         try:
-            drive = self.google_drive_api_auth()
+            log.info(f"[{file_name}] 가격표 이미지 구글 드라이브 저장...")
 
             # URL에서 데이터 스트리밍
             response = requests.get(image_url, stream=True)
@@ -64,7 +64,7 @@ class UploadGoogleDrive:
             }
 
             # 파일 업로드 요청
-            res = drive.files().create(
+            res = self.drive.files().create(
                 body=request_body,
                 media_body=media,
                 fields='id,webViewLink'
