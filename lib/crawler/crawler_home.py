@@ -1,4 +1,5 @@
 import re
+import time
 
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -77,7 +78,26 @@ class CrawlerHome:
     
     # 가격표 이미지 가져오기
     def _get_price_images(self):
-        # 가격 보기 버튼 클릭 (a.place_bluelink.iBUwB 태그에서 "가격" 이라는 텍스트가 있는 요소)
+        # 이미지 URL 저장할 리스트
+        image_urls = []
+
+        def get_image_url():
+            try:
+                image_tag = self.wait.until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "img.K0PDV.T3lr5"))
+                )
+                image_url = image_tag.get_attribute("src")
+                if image_url in image_urls:
+                    time.sleep(1)
+                    log.info(f"[{self.place_id}] 이미 존재하는 이미지 처리")
+                    return get_image_url()
+                
+                return image_url
+            except Exception as e:
+                log.error(f"[{self.place_id}] 이미지 가져오기 오류 발생: {e}")
+                return ""
+
+        # 가격 보기 버튼 클릭 (a.place_bluelink.iBUwB 태그에서 "가격" 이라는 텍스트가 포함된 요소)
         try:
             price_button = self.wait.until(
                 EC.presence_of_element_located((By.XPATH, "//a[contains(@class, 'place_bluelink') and contains(@class, 'iBUwB') and starts-with(text(), '가격')]"))
@@ -93,45 +113,35 @@ class CrawlerHome:
             image_count_max = int(image_count_max_tag.text.split('/')[-1].strip() or 0)
 
         except Exception as e:
-            log.error(f"ID {self.place_id} 이미지 최대 개수 가져오기 오류 발생: {e}")
+            log.error(f"[{self.place_id}] 이미지 최대 개수 가져오기 오류 발생: {e}")
             return ""
         
-        # 이미지 URL 저장할 리스트
-        image_urls = []
-        
-        # 첫 번째 이미지 URL 가져오기
-        try:
-            image_tag = self.wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR, "img.K0PDV.T3lr5"))
-            )
-            first_image_url = self.uploader.upload_image(f"{self.place_id}_0", image_tag.get_attribute("src"))
-            image_urls.append(first_image_url)
-        except Exception as e:
-            log.error(f"ID {self.place_id} 첫 번째 이미지 가져오기 오류 발생: {e}")
-            return ""
- 
-        # 나머지 이미지 순회하기 (2번째부터 끝까지)
-        try:
-            for idx in range(1, image_count_max):
-                # 다음 버튼 클릭
-                self.wait.until(
-                    EC.element_to_be_clickable((By.CSS_SELECTOR, "a.BU49A"))
-                ).click()
-                
-                # 새로운 이미지 요소 가져오기
-                image_tag = self.wait.until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "img.K0PDV.T3lr5"))
-                )
+        # 첫 번째 이미지 저장
+        first_image_url = get_image_url()
+        image_urls.append(first_image_url) 
 
-                # 이미지 URL 저장
-                current_url = image_tag.get_attribute("src")
-                image_url = self.uploader.upload_image(f"{self.place_id}_{idx}", current_url)
-                image_urls.append(image_url)
-        except Exception as e:
-            log.error(f"ID {self.place_id} 가격표 이미지 가져오기 오류 발생: {e}")
-            return ""
+        # 이미지 넘김 버튼
+        next_button = self.wait.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "a.BU49A"))
+        )
         
-        return ",".join(image_urls)
+        # 나머지 이미지 순회하기 (2번째부터 끝까지)
+        for idx in range(1, image_count_max):
+            try:
+                next_button.click()
+            except Exception as e:
+                log.error(f"[{self.place_id}] 다음 버튼 클릭 오류: {e}")
+                return ""
+            
+            time.sleep(1)
+            
+            # 이미지 저장
+            image_url = get_image_url()
+            image_urls.append(image_url)
+
+        download_image_urls = [self.uploader.upload_image(f"{self.place_id}_{idx}", url) for idx, url in enumerate(image_urls)]
+
+        return ",".join(download_image_urls)
 
     # 리뷰 가져오기
     def _get_reviews(self, soup: BeautifulSoup):
