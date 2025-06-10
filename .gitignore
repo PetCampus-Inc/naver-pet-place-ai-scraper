@@ -3,3 +3,7 @@ __pycache__
 
 storage.json
 token.json
+
+.env
+output/
+temp/
