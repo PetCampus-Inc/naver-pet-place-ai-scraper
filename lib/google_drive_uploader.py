@@ -1,18 +1,21 @@
 import requests
 import io
-
+from dotenv import load_dotenv
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from httplib2 import Http
 from oauth2client import file, client, tools
 from lib.logger import get_logger
 
+
+load_dotenv()
+
 log = get_logger()
 
 class UploadGoogleDrive:
     def __init__(self):
         self.credential_file = 'token.json'
-        self.folder_id = '1glRDTBPsJdzv38czY20X6gfYO4-bDkoW'
+        self.folder_id = '17mdG6VsHQlQNpI1Yu4x31H60V7QlhdCW'
         self.drive = self.google_drive_api_auth()
 
     # 이미지 타입 추출
@@ -75,3 +78,4 @@ class UploadGoogleDrive:
         except Exception as e:
             log.error(f"이미지 업로드 중 오류 발생: {e}")
             return None
+        
