@@ -26,8 +26,9 @@ class CrawlerInformation:
     # 링크 리스트 가져오기
     def _get_links(self, soup: BeautifulSoup):
         elements = soup.select("a.eBr5V")
+        exception_links = ["cafe.naver.com", "pf.kakao.com"]
         
-        links_dict = {}
+        result = []
         link_types = {
             "instagram.com": "인스타그램",
             "blog.naver.com": "블로그", 
@@ -38,26 +39,20 @@ class CrawlerInformation:
         for link in elements:
             href = link.get("href")
             if not href: continue
-                
-            # 링크 유형 결정
-            link_type = "홈페이지"
-            for domain, label in link_types.items():
+
+            # 제외 링크 처리
+            if any(domain in href for domain in exception_links):
+                continue
+            
+            label = "홈페이지"
+            for domain, type_name in link_types.items():
                 if domain in href:
-                    link_type = label
+                    label = type_name
                     break
-            
-            # 같은 유형의 링크가 여러 개 있을 경우 번호 추가
-            base_key = link_type
-            counter = 1
-            key = base_key
-            
-            while key in links_dict:
-                counter += 1
-                key = f"{base_key} {counter}"
-                
-            links_dict[key] = href
+
+            result.append(f"{label}: {href}")
         
-        return links_dict
+        return result
     
     # 주차, 발렛 정보 가져오기
     def _get_parking(self, soup: BeautifulSoup):
@@ -83,6 +78,6 @@ class CrawlerInformation:
             "소개": self._safe_select(soup, "div.T8RFa"),
             "편의시설 및 서비스": self._safe_select_all(soup, "div.owG4q"),
             "대표 키워드": self._safe_select_all(soup, "div.FbEj5 > *.RLvZP"),
-            **self._get_links(soup),
+            "링크": self._get_links(soup),
             **self._get_parking(soup)
         }
