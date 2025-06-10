@@ -1,22 +1,20 @@
 import requests
 from lib.logger import get_logger
+from lib.google_drive_uploader import UploadGoogleDrive
 
 log = get_logger()
 
 def fetch_naver_place_list(location, keywords):
     """네이버 지도 검색 API 스니핑 함수"""
 
-    endpoint_url = f"https://m.map.naver.com/search2/searchMore.naver"
+    endpoint_url = f"https://svc-api.map.naver.com/v1/fusion-search/all"
     headers = {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
         'Referer': 'https://m.map.naver.com/'
     }
     params = {
-        'sm': 'clk',
-        'style': 'v5',
-        'page': 1,
-        'displayCount': 1000,
-        'type': 'SITE_1'
+        'siteSort': 'relativity',
+        'petrolType': 'all'
     }
     
     raw_results = []
@@ -24,12 +22,14 @@ def fetch_naver_place_list(location, keywords):
     # 키워드에 대한 모든 검색 결과 가져오기
     for keyword in keywords:
         params['query'] = f"{location}+{keyword}"
+
+        print(params['query'])
         
         try:
             response = requests.get(endpoint_url, headers=headers, params=params)
             response.raise_for_status()
-            
-            data_list = response.json()["result"]["site"]["list"]
+
+            data_list = response.json()["items"]
             raw_results.extend(data_list)
         except (requests.RequestException, KeyError, ValueError) as e:
             log.error(f"네이버 지도 API 스니핑 실패 ({location} {keyword}): {e}")
@@ -37,18 +37,23 @@ def fetch_naver_place_list(location, keywords):
     filtered_data = []
     seen_ids = set()
     
+    uploader = UploadGoogleDrive()
     for item in raw_results:
         # self.location 지역 일치 체크, 중복 주소 필터링
         if item['id'] not in seen_ids and location in item['address']:
+            # 구글 드라이브에 썸네일 이미지 업로드
+            uploaded_thumbnail_url = uploader.upload_image(f"{item['id']}_thumbnail", item['thumbUrl'])
+
             # 필요한 데이터만 파싱
             parsed_data = {
                 'id': item['id'],
                 '업체명': item['name'],
-                '등록업종': ', '.join(item['category']),
+                '등록업종': item['category'],
                 '전화번호': item['tel'],
                 '주소(도로명)': item['roadAddress'],
-                'x': item['x'],
-                'y': item['y']
+                'lat': item['latitude'],
+                'lng': item['longitude'],
+                '썸네일 이미지 URL': uploaded_thumbnail_url
             }
 
             filtered_data.append(parsed_data)
