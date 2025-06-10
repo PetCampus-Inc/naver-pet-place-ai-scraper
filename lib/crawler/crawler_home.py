@@ -6,8 +6,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from bs4 import BeautifulSoup
-from lib.upload_google_drive import UploadGoogleDrive
+from lib.google_drive_uploader import UploadGoogleDrive
 from lib.logger import get_logger
+from utils.image_optimizer import ImageOptimizer
 
 log = get_logger()
 
@@ -19,6 +20,7 @@ class CrawlerHome:
         self.url = f"https://m.place.naver.com/place/{self.place_id}/home"
 
         self.uploader = UploadGoogleDrive()
+        self.image_optimizer = ImageOptimizer()
 
     # 운영 시간 가져오기
     def _get_business_hours(self, soup: BeautifulSoup, has_business_hours_toggle: bool):
@@ -76,6 +78,20 @@ class CrawlerHome:
             log.error(f"ID {self.place_id} 영업 시간 가져오기 오류 발생: {e}")
             return {}
     
+    # 가격 정보 가져오기
+    def _get_price_info(self, soup: BeautifulSoup):
+        price_list_ul = soup.select_one("ul.Jp8E6.a0hWz")
+        if not price_list_ul: return []
+
+        result = []
+        for li in price_list_ul.select("li"):
+            price_info = {}
+            price_info["명칭"] = li.select_one("span.A_cdD").text
+            price_info["가격"] = li.select_one("div.CLSES").text
+            result.append(price_info)
+
+        return result
+
     # 가격표 이미지 가져오기
     def _get_price_images(self):
         # 이미지 URL 저장할 리스트
@@ -130,7 +146,7 @@ class CrawlerHome:
             try:
                 next_button.click()
             except Exception as e:
-                log.error(f"[{self.place_id}] 다음 버튼 클릭 오류: {e}")
+                log.error(f"[{self.place_id}_{idx}] 다음 버튼 클릭 오류: {e}")
                 return ""
             
             time.sleep(1)
@@ -139,11 +155,13 @@ class CrawlerHome:
             image_url = get_image_url()
             image_urls.append(image_url)
 
+        output_path = f"temp/{self.place_id}/images/image_{idx}.webp"
+        self.image_optimizer.save_optimized_image(image_urls=image_urls, output_path=output_path)
         download_image_urls = [self.uploader.upload_image(f"{self.place_id}_{idx}", url) for idx, url in enumerate(image_urls)]
 
         return ",".join(download_image_urls)
 
-    # 리뷰 가져오기
+    # 리뷰 가져오기 (방문자 리뷰, 블로그 리뷰)
     def _get_reviews(self, soup: BeautifulSoup):
         try:
             review_tags = soup.select("span.PXMot > a")
@@ -161,7 +179,7 @@ class CrawlerHome:
             return {}
 
     def get_home_data(self):
-        """네이버 플레이스 메인 페이지 데이터 가져오기"""
+        """네이버 플레이스 '홈' 탭 데이터 가져오기"""
         self.driver.get(self.url)
         self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
 
@@ -180,12 +198,14 @@ class CrawlerHome:
             business_hours = self._get_business_hours(soup, has_business_hours_toggle)
             price_images = self._get_price_images()
             reviews = self._get_reviews(soup)
+            price_info = self._get_price_info(soup)
             map_link = f"https://map.naver.com/p/entry/place/{self.place_id}"
 
             return {
                 "가격표 이미지": price_images,
                 "네이버 지도 링크": map_link,
-                **business_hours,
+                "가격 정보": price_info,
+                "운영 시간": business_hours,
                 **reviews
             }
         except Exception as e:
