@@ -40,9 +40,6 @@ class ImageOptimizer:
         self.output_dir = output_dir
         self.image_name = image_name
         
-        # 디렉토리 초기화
-        os.makedirs(self.output_dir, exist_ok=True)
-
     def _generate_image_paths(
         self,
         image_urls: List[str],
