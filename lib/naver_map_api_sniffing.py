@@ -1,11 +1,10 @@
 import requests
 
 from lib.logger import get_logger
-from lib.s3_uploader import S3ImageUploader
 
 log = get_logger()
 
-async def get_naver_place_list(location, keywords):
+def get_naver_place_list(location, keywords):
     """네이버 지도 검색 API 스니핑 메인 함수"""
     # 1. 데이터 수집
     place_list = _fetch_naver_places(location, keywords)
@@ -13,10 +12,8 @@ async def get_naver_place_list(location, keywords):
     # 2. 데이터 필터링
     filtered_places = _filter_places(place_list, location)
     
-    # 3. 이미지 업로드 및 데이터 변환
-    processed_data = await _process_places_with_images(filtered_places, location)
-    
-    return processed_data
+    # 3. 필요한 데이터만 추출 후 반환
+    return [_parse_data(place) for place in filtered_places]
 
 def _filter_places(place_list, location):
     """장소 데이터 필터링 (중복 제거, 지역 일치)"""
@@ -24,48 +21,23 @@ def _filter_places(place_list, location):
     seen_ids = set()
     
     for item in place_list:
+        # ID가 중복이거나, 지역 일치하지 않는 경우는 제외
         if item['id'] not in seen_ids and location in item['address']:
             filtered_data.append(item)
             seen_ids.add(item['id'])
     
     return filtered_data
 
-async def _process_places_with_images(places, location):
-    """이미지 업로드 및 데이터 파싱"""
-    s3_uploader = S3ImageUploader()
-    processed_data = []
-    
-    for item in places:
-        # S3 이미지 업로드
-        s3_key = await _upload_thumbnail_to_s3(s3_uploader, item, location)
-        
-        # 데이터 파싱
-        parsed_data = _parse_place_data(item, s3_key)
-        processed_data.append(parsed_data)
-    
-    return processed_data
-
-async def _upload_thumbnail_to_s3(s3_uploader, item, location):
-    """썸네일 이미지 S3 업로드"""
-    file_extension = item['thumbUrl'].split(".")[-1]
-    key = f"{location}/{item['id']}/thumbnail.{file_extension}"
-    
-    s3_uploader.upload_image(item['thumbUrl'], key)
-    log.info(f"S3 업로드 완료 - {key}")
-    
-    return key
-
-def _parse_place_data(item, s3_key):
-    """장소 데이터 파싱"""
+def _parse_data(data: dict):
     return {
-        'id': item['id'],
-        '업체명': item['name'],
-        '등록업종': item['category'],
-        '전화번호': item['tel'],
-        '주소(도로명)': item['roadAddress'],
-        'lat': item['latitude'],
-        'lng': item['longitude'],
-        '썸네일 이미지 S3 키': s3_key
+        "id": data['id'],
+        "name": data['name'],
+        "tel": data['tel'],
+        "address": data['address'],
+        "road_address": data['roadAddress'],
+        "lat": data['latitude'],
+        "lng": data['longitude'],
+        "thumbnail_url": data['thumbUrl'],
     }
 
 def _fetch_naver_places(location, keywords):
