@@ -53,27 +53,20 @@ def remove_duplicate_texts(texts: list[str]) -> list[str]:
         # 빈 문자열은 대상에서 제외
         if not norm_text: continue
 
-        # 3글자 이하는 바로 추가
-        if len(text) < 3:
-            results.append(text)
-            processed.add(norm_text)
-            continue
-            
         # 이미 처리했거나 다른 텍스트에 완전히 포함되는 경우 제외
         is_contained_in_others = False
         
         for other in texts:
-            if text == other:
-                continue  # 자기 자신은 비교 대상에서 제외
+            if text == other: continue  # 자기 자신은 비교 대상에서 제외
                 
             other_norm = re.sub(r'\s+', '', other.lower())
             
-            # 현재 텍스트가 다른 텍스트에 완전히 포함되는지 검사
+            # 현재 텍스트가 다른 텍스트에 포함되어 있는지 검사
             if norm_text != other_norm and norm_text in other_norm:
                 is_contained_in_others = True
                 break
                 
-        # 다른 텍스트에 포함되지 않고, 아직 처리하지 않은 경우에만 추가
+        # 다른 텍스트에 포함되어 있지 않고, 아직 처리하지 않은 경우에만 추가
         if not is_contained_in_others and norm_text not in processed:
             results.append(text)
             processed.add(norm_text)
