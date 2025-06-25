@@ -9,7 +9,7 @@ from utils.fetch import fetch_url
 
 log = get_logger(__name__)
 
-def extract_links(place_id: str, base_url: str) -> list[str]:
+def extract_links(base_url: str) -> list[str]:
     """페이지에서 모든 링크를 추출하는 함수"""
 
     excluded_text_patterns = ["개인정보", "이용약관", "고객지원", "리뷰", "문의"]
@@ -27,7 +27,7 @@ def extract_links(place_id: str, base_url: str) -> list[str]:
         # 리다이렉션 처리
         redirect_url = _redirect(soup, response, base_url)
         if redirect_url:
-            return extract_links(place_id, redirect_url)
+            return extract_links(redirect_url)
         
         for a_tag in soup.find_all('a', href=True):
             href = a_tag['href'].strip()
@@ -42,11 +42,12 @@ def extract_links(place_id: str, base_url: str) -> list[str]:
 
             links.add(full_url.rstrip('/'))
         
-        log.info(f"[{place_id}] {base_url}: {len(links)}개의 유효한 링크 추출")
+        if len(links) > 0: log.info(f"{base_url}: {len(links)}개의 유효한 링크 추출")
+        
         return list(links)
         
     except Exception as e:
-        log.error(f"{place_id}_{base_url}: {e}")
+        log.error(f"{base_url}: {e}")
         return []
 
 def _is_valid_url(url: str, base_domain: str):
