@@ -1,21 +1,39 @@
 import bs4
+from typing import List
 
+from lib.scrapper.batch_scraper import BatchScraper
 from lib.logger import get_logger
 from utils.cleaner import clean_html, clean_text
 from utils.text import text_to_sentence, remove_duplicate_texts
-from utils.fetch import fetch_url
+from utils.extract_links import extract_links
 
 log = get_logger(__name__)
 
-def scrape_text_content(url: str) -> list[str]:
-    """웹 페이지에서 텍스트 콘텐츠를 추출합니다"""
-        # URL 유효성 검사
+def scrape_page_content(business_urls: List[dict]) -> List[dict]:
+    scraper = BatchScraper()
 
+    result = []
+    for business_url in business_urls:
+        for place_id, urls in business_url.items():
+            child_links = sum([extract_links(url) for url in urls], [])
+            
+            if child_links:
+                contents = scraper.scrape_batch(child_links, _parse_text_content)
+                merged_contents = [text for texts in contents for text in texts]
+                page_content = " ".join(remove_duplicate_texts(merged_contents))
+            else: page_content = ""
+
+            result.append({
+                "id": place_id,
+                "page_content": page_content
+            })
+
+    return result
+
+def _parse_text_content(page_source) -> list[str]:
+    """웹 페이지의 텍스트 콘텐츠 추출 후, 문장 리스트로 반환"""
     # HTML 파싱
-    html_source = fetch_url(url)
-    if not html_source: return []
-
-    soup = bs4.BeautifulSoup(html_source.content, 'lxml')
+    soup = bs4.BeautifulSoup(page_source.content, 'lxml')
 
     # 불필요한 태그 제거
     cleaned_soup = clean_html(soup)
@@ -29,15 +47,12 @@ def scrape_text_content(url: str) -> list[str]:
         text = tag.get_text(strip=True)
         cleaned_text = clean_text(text)
 
-        if text and len(text) < 2: continue
+        if cleaned_text and len(cleaned_text) < 2: continue
 
         sentences = text_to_sentence(cleaned_text)
         all_text.extend(sentences)
     
-    # 중복 제거
-    unique_text = remove_duplicate_texts(all_text)
-    
-    return unique_text
+    return all_text
 
 def _extract_text_from_soup(soup: bs4.BeautifulSoup) -> list[bs4.Tag]:
     """BeautifulSoup에서 유효한 텍스트를 가진 태그들을 반환합니다."""
@@ -77,9 +92,9 @@ def _extract_text_from_soup(soup: bs4.BeautifulSoup) -> list[bs4.Tag]:
                 current = current.parent
             
             # primary_tags 중 하나가 부모 체인에 있는지 확인
-            is_child_of_primary = any(p_tag in parent_chain for p_tag in primary_tags)
+            has_primary_parent = any(p_tag in parent_chain for p_tag in primary_tags)
             
-            if not is_child_of_primary and tag.get_text(strip=True):
+            if not has_primary_parent and tag.get_text(strip=True):
                 valid_tags.append(tag)
 
     return valid_tags
