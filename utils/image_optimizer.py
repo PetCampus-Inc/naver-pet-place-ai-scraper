@@ -1,11 +1,10 @@
 import io
 import os
 import requests
-import concurrent.futures
 
 from PIL import Image
 from contextlib import closing
-from typing import Optional, List, Tuple, Iterator
+from typing import Optional, List, Tuple
 
 from lib.logger import get_logger
 
