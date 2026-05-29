@@ -81,47 +81,94 @@ class NaverPlaceParser:
             })
         return business_hours
     
+    _DAY_ORDER = ['월', '화', '수', '목', '금', '토', '일']
+    _WEEKDAYS = ['월', '화', '수', '목', '금']
+    _WEEKENDS = ['토', '일']
+
+    @staticmethod
+    def _extract_day_char(day_str: str) -> str:
+        """'목(5/28)', '월', '매일' 등에서 첫 한글 글자만 추출"""
+        if not day_str:
+            return ''
+        # '매일'은 그대로
+        if day_str.startswith('매일'):
+            return '매일'
+        # 첫 글자가 한글이면 그것만 반환
+        first = day_str[0]
+        return first if '월화수목금토일'.find(first) >= 0 else ''
+
     def _parse_business_hours(self):
         try:
             business_hours = []
             for business_hour in self.detail_data.get('newBusinessHours', []):
-                weekday_times = []  # 월~금
-                weekend_times = []  # 토~일
-                offdays = []        # 휴무일
+                days = {d: None for d in self._DAY_ORDER}
+                offdays = []
+                irregular_offdays = []  # 임시휴무 (정기휴무 아님)
 
-                for hour in business_hour.get('businessHours', []):
-                    day = hour.get('day', '')
+                status_info = business_hour.get('businessStatusDescription') or {}
+                description = status_info.get('description')
+                regular_off_pattern = business_hour.get('comingRegularClosedDays') or None
 
-                    if hour.get('businessHours'):
-                        bh = hour.get('businessHours', {})
-                        start = bh.get('start', '')
-                        end = bh.get('end', '')
+                raw_entries = business_hour.get('businessHours') or []
+                for hour in raw_entries:
+                    raw_day = hour.get('day', '')
+                    day = self._extract_day_char(raw_day)
+                    bh = hour.get('businessHours') or {}
+                    start = bh.get('start') or ''
+                    end = bh.get('end') or ''
+                    desc = hour.get('description', '') or ''
 
+                    # '매일' 케이스: 전체 요일에 동일 적용
+                    if day == '매일':
                         if start and end:
-                            time_str = f"{start} - {end}"
-                            if day == '매일':
-                                weekday_times.append(time_str)
-                                weekend_times.append(time_str)
-                            elif day in ['월', '화', '수', '목', '금']:
-                                weekday_times.append(time_str)
-                            elif day in ['토', '일']:
-                                weekend_times.append(time_str)
-                    else:
-                        # start나 end가 빈 값이면 description 확인
-                        description = hour.get('description', '')
-                        if '정기휴무' in description:
-                            offdays.append(day)
+                            for d in self._DAY_ORDER:
+                                days[d] = {'open': start, 'close': end}
+                        continue
 
+                    if day not in days:
+                        continue
+
+                    if start and end:
+                        days[day] = {'open': start, 'close': end}
+                    elif '정기휴무' in desc:
+                        offdays.append(day)
+                    elif '휴무' in desc:
+                        # 단순 '휴무' = 그 주 임시휴무 (보통 day_str에 날짜 포함)
+                        irregular_offdays.append(day)
+
+                # 모든 요일이 임시휴무인 경우 = 그 주 전체가 임시 휴무 상태
+                # 네이버가 정규 영업시간을 임시 마스킹한 케이스 → 별도 플래그
+                temporary_closure = (
+                    len(irregular_offdays) >= 6 and not offdays
+                    and all(days[d] is None for d in self._DAY_ORDER)
+                )
+
+                # 24시간 영업 감지: 모든 요일이 00:00-24:00 또는 00:00-23:59
+                operating_days = [d for d in self._DAY_ORDER if days[d] is not None]
+                is_24h = (
+                    len(operating_days) == 7
+                    and all(days[d]['open'] == '00:00' and days[d]['close'] in ('24:00', '23:59') for d in operating_days)
+                )
+
+                # 하위 호환: 압축 표기 (요일별 시간이 다르면 가장 흔한 시간만 표시 — 정보 손실 있음)
+                weekday_times = [f"{days[d]['open']} - {days[d]['close']}" for d in self._WEEKDAYS if days[d]]
+                weekend_times = [f"{days[d]['open']} - {days[d]['close']}" for d in self._WEEKENDS if days[d]]
                 weekdays = max(set(weekday_times), key=weekday_times.count) if weekday_times else None
                 weekends = max(set(weekend_times), key=weekend_times.count) if weekend_times else None
 
                 business_hours.append({
                     "name": business_hour.get('name', 'default') or 'default',
-                    "weekdays": weekdays,
-                    "weekends": weekends,
+                    "description": description,
+                    "is_24h": is_24h,
+                    "temporary_closure": temporary_closure,
+                    "regular_off_pattern": regular_off_pattern,
+                    "days": days,
                     "offdays": offdays,
+                    "irregular_offdays": irregular_offdays,
+                    "weekdays": weekdays,   # legacy
+                    "weekends": weekends,   # legacy
                 })
-            
+
             return business_hours
 
         except Exception as e:
