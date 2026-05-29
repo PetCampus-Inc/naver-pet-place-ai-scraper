@@ -15,8 +15,14 @@ class S3ImageUploader:
         access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
         secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
         bucket_name = os.getenv("AWS_BUCKET_NAME")
-        
-        self.s3 = boto3.client("s3", aws_access_key_id=access_key_id, aws_secret_access_key=secret_access_key)
+        region = os.getenv("AWS_REGION", "ap-northeast-2")
+
+        self.s3 = boto3.client(
+            "s3",
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            region_name=region,
+        )
         self.bucket = bucket_name
         
         MB = 1024 * 1024

@@ -3,6 +3,10 @@ import json
 import time
 from typing import List
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from lib.s3_uploader import S3ImageUploader
 from lib.naver_map_api_sniffing import get_naver_place_list
 from lib.scrapper.scrape_page_content import scrape_page_content
