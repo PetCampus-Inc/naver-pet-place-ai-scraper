@@ -7,3 +7,13 @@ token.json
 .env
 output/
 temp/
+
+# macOS
+.DS_Store
+
+# Claude Code session state
+.claude/
+
+# 스크래퍼 결과물 (루트의 {지역명}.json)
+/*.json
+/*.json.backup
