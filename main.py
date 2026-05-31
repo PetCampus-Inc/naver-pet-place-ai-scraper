@@ -67,18 +67,24 @@ class Main:
         for place in place_list:
             base_key = f"{self.location}/{place['id']}"
 
-            # 썸네일
-            thumbnail_extension = place['thumbnail_url'].split('.')[-1]
-            thumbnail_s3_key = f"{base_key}/thumbnail.{thumbnail_extension}"
-            upload_image_map.append({
-                "url": place['thumbnail_url'],
-                "key": thumbnail_s3_key
-            })
+            # 썸네일 (없으면 None으로 두고 업로드 건너뜀)
+            thumbnail_url = place.get('thumbnail_url') or None
+            if thumbnail_url:
+                thumbnail_extension = thumbnail_url.split('.')[-1].split('?')[0]
+                thumbnail_s3_key = f"{base_key}/thumbnail.{thumbnail_extension}"
+                upload_image_map.append({
+                    "url": thumbnail_url,
+                    "key": thumbnail_s3_key
+                })
+            else:
+                thumbnail_s3_key = None
 
             # 가격표 이미지
             menu_image_s3_keys = []
-            for i, menu_image_url in enumerate(place['menu_image_urls']):
-                menu_image_extension = menu_image_url.split('.')[-1]
+            for i, menu_image_url in enumerate(place.get('menu_image_urls') or []):
+                if not menu_image_url:
+                    continue
+                menu_image_extension = menu_image_url.split('.')[-1].split('?')[0]
                 menu_image_s3_key = f"{base_key}/menu_images/{i}.{menu_image_extension}"
                 menu_image_s3_keys.append(menu_image_s3_key)
                 upload_image_map.append({
