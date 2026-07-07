@@ -17,10 +17,12 @@ PAGE_DISPLAY = 50
 MAX_PAGES_PER_KEYWORD = 6  # 최대 300건/키워드
 
 
-def get_naver_place_list(location, keywords):
+def get_naver_place_list(location, keywords, limit=None):
     """네이버 지도 검색을 Selenium으로 수행해 장소 리스트를 반환"""
-    place_list = _fetch_naver_places(location, keywords)
+    place_list = _fetch_naver_places(location, keywords, limit=limit)
     filtered_places = _filter_places(place_list, location)
+    if limit is not None:
+        filtered_places = filtered_places[:limit]
     return [_parse_data(place) for place in filtered_places]
 
 
@@ -58,7 +60,7 @@ def _parse_data(data: dict):
     }
 
 
-def _fetch_naver_places(location, keywords):
+def _fetch_naver_places(location, keywords, limit=None):
     """Selenium으로 pcmap.place.naver.com 검색 페이지를 렌더링 후 __APOLLO_STATE__ 파싱"""
     driver = _create_driver()
     raw_results = []
@@ -77,6 +79,9 @@ def _fetch_naver_places(location, keywords):
 
                 log.info(f"  [{keyword}] page={page} → {len(items)}개")
                 raw_results.extend(items)
+
+                if limit is not None and len(_filter_places(raw_results, location)) >= limit:
+                    return raw_results
 
                 if len(items) < PAGE_DISPLAY:
                     break  # 마지막 페이지

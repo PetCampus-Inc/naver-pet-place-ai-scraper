@@ -1,5 +1,7 @@
+import argparse
 import asyncio
 import json
+import os
 import time
 from typing import List
 
@@ -19,15 +21,18 @@ from utils.dict_utils import pick_fields
 log = get_logger()
 
 class Main:
-    def __init__(self):
-        self.location = self._input_location()
+    def __init__(self, location=None, collection_only=False, limit=None, output_dir="."):
+        self.location = location or self._input_location()
+        self.collection_only = collection_only
+        self.limit = limit
+        self.output_dir = output_dir
         self.keywords = ["강아지 유치원", "반려견 유치원", "강아지 호텔", "반려견 호텔", "애견 유치원", "애견 호텔"]
 
     async def run(self):
         start_time = time.time()
 
         # 1. 네이버 지도 검색 결과 가져오기 (API 스니핑)
-        place_list = get_naver_place_list(self.location, self.keywords)
+        place_list = get_naver_place_list(self.location, self.keywords, limit=self.limit)
         log.info(f"총 {len(place_list)}개 장소 검색 됨")
 
         # 2. 상세 정보 스크랩핑 데이터 추가
@@ -38,25 +43,41 @@ class Main:
         place_link_map = [{ data["id"]: [i['url'] for i in data['links']] } for data in place_list]
         place_list = merge_dict_lists('id', place_list, scrape_page_content(place_link_map))
 
-        # 4. 이미지 S3 버킷 업로드
-        upload_results = await self._upload_images(place_list)
-        place_list = merge_dict_lists('id', place_list, upload_results)
+        if self.collection_only:
+            # 로컬 수집 테스트에서는 외부 저장소와 유료 AI API를 호출하지 않는다.
+            place_list = self._filter_collection_place_list(place_list)
+        else:
+            # 4. 이미지 S3 버킷 업로드
+            upload_results = await self._upload_images(place_list)
+            place_list = merge_dict_lists('id', place_list, upload_results)
 
-        # 5. 배치 API 요청
-        batch_api_response = request_batch_api(place_list)
-        place_list = merge_dict_lists('id', place_list, batch_api_response)
+            # 5. 배치 API 요청
+            batch_api_response = request_batch_api(place_list)
+            place_list = merge_dict_lists('id', place_list, batch_api_response)
 
-        # 7. 필요한 데이터만 추출
-        place_list = self._filter_place_list(place_list)
+            # 6. 필요한 데이터만 추출
+            place_list = self._filter_place_list(place_list)
 
-        with open(f'{self.location}.json', 'w', encoding='utf-8') as f:
+        os.makedirs(self.output_dir, exist_ok=True)
+        output_path = os.path.join(self.output_dir, f'{self.location}.json')
+        with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(place_list, f, ensure_ascii=False, indent=4)
 
         elapsed_time = time.time() - start_time
         log.info(f"작업 완료 - 총 {len(place_list)}개 항목, 소요 시간: {elapsed_time:.2f}초")
+        log.info(f"결과 파일: {output_path}")
 
     def _filter_place_list(self, place_list: List[dict]):
         keys = ['id', 'name', 'tel', 'address', 'thumbnail_s3_key', 'menu_image_s3_keys', 'road_address', 'lat', 'lng', 'business_hours', 'menus', 'review_counts', 'links', 'categories', 'services']
+        return [pick_fields(place, keys) for place in place_list]
+
+    def _filter_collection_place_list(self, place_list: List[dict]):
+        keys = [
+            'id', 'name', 'tel', 'address', 'road_address', 'lat', 'lng',
+            'business_hours', 'menus', 'review_counts', 'links', 'description',
+            'keywords', 'conveniences', 'parking', 'valet_parking',
+            'thumbnail_url', 'menu_image_urls', 'page_content'
+        ]
         return [pick_fields(place, keys) for place in place_list]
     
     async def _upload_images(self, place_list: List[dict]):
@@ -112,5 +133,24 @@ class Main:
     
 
 if __name__ == "__main__":
-    main = Main()
+    parser = argparse.ArgumentParser(description="네이버 반려동물 업체 수집기")
+    parser.add_argument("--location", help="수집할 지역명 (예: 강남구)")
+    parser.add_argument("--limit", type=int, help="최대 수집 건수")
+    parser.add_argument(
+        "--collection-only",
+        action="store_true",
+        help="S3 업로드와 Anthropic API 호출 없이 JSON만 생성",
+    )
+    parser.add_argument("--output-dir", default=".", help="JSON 저장 폴더")
+    args = parser.parse_args()
+
+    if args.limit is not None and args.limit < 1:
+        parser.error("--limit는 1 이상이어야 합니다.")
+
+    main = Main(
+        location=args.location,
+        collection_only=args.collection_only,
+        limit=args.limit,
+        output_dir=args.output_dir,
+    )
     asyncio.run(main.run())
