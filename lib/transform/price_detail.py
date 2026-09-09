@@ -46,6 +46,11 @@ def _build_row(place_id, place_name: str, menu: dict) -> dict:
 
     if unit_type == "HOUR" and unit:
         duration_minutes = unit * 60
+    elif unit_type == "NIGHT" and unit:
+        # '박'은 숙박업 관례상 1박 = 24시간으로 정의가 고정되어 있어 텍스트에
+        # 시간이 명시되지 않아도 추측이 아니라 단위 자체의 정의로 계산함
+        # (실제 참고 데이터(price_and_product.json/product_pricing.json)로 교차검증함)
+        duration_minutes = unit * 24 * 60
     else:
         duration_minutes = parse_explicit_duration_minutes(name)
 

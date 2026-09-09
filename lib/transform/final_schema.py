@@ -15,6 +15,7 @@ from lib.transform.enum_maps import (
 )
 from lib.transform.business_hours import to_final_business_hours
 from lib.transform.business_services import derive_business_services
+from lib.transform.price_aggregation import to_avg_price_rows
 
 REVIEW_COUNT_KEY_MAP = {
     "방문자리뷰": "visit_review_count",
@@ -86,3 +87,7 @@ def to_final_schema(place: dict) -> dict:
         "business_services": derive_business_services(place.get("business_hours")),
         "review_count": _map_review_count(place.get("review_counts")),
     }
+
+
+def to_avg_price_for_place(place: dict) -> list:
+    return to_avg_price_rows(place.get("id"), place.get("name"), place.get("menus"))

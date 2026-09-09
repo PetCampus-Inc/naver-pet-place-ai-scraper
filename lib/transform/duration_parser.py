@@ -63,3 +63,31 @@ def minutes_to_hour_str(minutes):
         return None
     hours = minutes / 60
     return f"{hours:g}시간"
+
+
+_RANGE_PATTERN = re.compile(r"(\d+(?:\.\d+)?)\s*(?:kg)?\s*[~\-]\s*(\d+(?:\.\d+)?)\s*kg?")
+_UNDER_PATTERN = re.compile(r"^\s*~?\s*(\d+(?:\.\d+)?)\s*kg")
+_OVER_PATTERN = re.compile(r"(\d+(?:\.\d+)?)\s*kg\s*~\s*$")
+
+
+def parse_weight_range(text: str):
+    """'~5kg' -> [0, 5.0], '5.1kg~8kg' -> [5.1, 8.0], '15.1kg~' -> [15.1, 0].
+    0은 '그쪽 경계 없음'을 뜻함 (product_pricing.json 실측 표기와 동일).
+    파싱 불가('전체중' 등)하면 [0, 0].
+    """
+    if not text:
+        return [0, 0]
+
+    range_match = _RANGE_PATTERN.search(text)
+    if range_match:
+        return [float(range_match.group(1)), float(range_match.group(2))]
+
+    over_match = _OVER_PATTERN.search(text)
+    if over_match:
+        return [float(over_match.group(1)), 0]
+
+    under_match = _UNDER_PATTERN.search(text)
+    if under_match:
+        return [0, float(under_match.group(1))]
+
+    return [0, 0]

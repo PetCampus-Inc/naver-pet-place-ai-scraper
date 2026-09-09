@@ -3,6 +3,7 @@ import asyncio
 import json
 import os
 import time
+from collections import defaultdict
 from typing import List
 
 from dotenv import load_dotenv
@@ -19,8 +20,10 @@ from lib.request_batch_api import request_batch_api
 from utils.dict_utils import pick_fields
 from lib.transform import (
     to_final_schema,
+    to_avg_price_for_place,
     to_price_and_product_rows,
     apply_min_max_across_places,
+    build_product_pricing,
 )
 
 log = get_logger()
@@ -79,8 +82,10 @@ class Main:
     def _write_final_schema_outputs(self, place_list: List[dict]):
         final_list = [to_final_schema(place) for place in place_list]
 
+        avg_price_rows = []
         price_and_product_rows = []
         for place in place_list:
+            avg_price_rows.extend(to_avg_price_for_place(place))
             price_and_product_rows.extend(
                 to_price_and_product_rows(place.get("id"), place.get("name"), place.get("menus"))
             )
@@ -90,11 +95,29 @@ class Main:
         with open(final_path, 'w', encoding='utf-8') as f:
             json.dump(final_list, f, ensure_ascii=False, indent=4)
 
+        avg_price_path = os.path.join(self.output_dir, f'{self.location}_avg_price_per_time.json')
+        with open(avg_price_path, 'w', encoding='utf-8') as f:
+            json.dump(avg_price_rows, f, ensure_ascii=False, indent=4)
+
         price_and_product_path = os.path.join(self.output_dir, f'{self.location}_price_and_product.json')
         with open(price_and_product_path, 'w', encoding='utf-8') as f:
             json.dump(price_and_product_rows, f, ensure_ascii=False, indent=4)
 
-        log.info(f"변환 결과 파일: {final_path}, {price_and_product_path}")
+        rows_by_place = defaultdict(list)
+        for row in price_and_product_rows:
+            rows_by_place[row["kindergarten_id"]].append(row)
+        product_pricing_list = [
+            build_product_pricing(place.get("id"), rows_by_place.get(place.get("id"), []))
+            for place in place_list
+        ]
+
+        product_pricing_path = os.path.join(self.output_dir, f'{self.location}_product_pricing.json')
+        with open(product_pricing_path, 'w', encoding='utf-8') as f:
+            json.dump(product_pricing_list, f, ensure_ascii=False, indent=4)
+
+        log.info(
+            f"변환 결과 파일: {final_path}, {avg_price_path}, {price_and_product_path}, {product_pricing_path}"
+        )
 
     def _filter_place_list(self, place_list: List[dict]):
         keys = ['id', 'name', 'tel', 'address', 'thumbnail_s3_key', 'menu_image_s3_keys', 'road_address', 'lat', 'lng', 'business_hours', 'menus', 'review_counts', 'links', 'categories', 'services']
