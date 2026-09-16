@@ -11,8 +11,8 @@ output/avg_price_per_time.json 실측 스키마:
     → 여기서는 실제 menus 데이터가 있는 조합만 행으로 만든다.
 
     또한 avg_price_per_time.json의 service_type(DAYCARE/NIGHT_CARE/TRAINING/
-    MEMBERSHIP) 중 NIGHT_CARE, MEMBERSHIP에 대응하는 한글 menus.package 근거가
-    없어서 이 두 service_type은 절대 나오지 않는다 — 추측해서 채우지 않음.
+    MEMBERSHIP) 중 MEMBERSHIP에 대응하는 가격 데이터는 우리 추출 스키마에
+    아예 없어서(있음/없음 불리언만 존재) 절대 나오지 않는다 — 추측해서 채우지 않음.
 """
 
 from collections import defaultdict
@@ -24,6 +24,8 @@ PRODUCT_TYPE_MAP = {
 }
 
 SERVICE_TYPE_KEYWORDS = [
+    ("호텔링", "NIGHT_CARE"),
+    ("호텔", "NIGHT_CARE"),
     ("데이케어", "DAYCARE"),
     ("유치원", "DAYCARE"),
     ("훈련", "TRAINING"),
