@@ -3,6 +3,7 @@ import asyncio
 import json
 import os
 import time
+from collections import defaultdict
 from typing import List
 
 from dotenv import load_dotenv
@@ -17,6 +18,13 @@ from lib.scrapper.scrape_naver_places import scrape_naver_places
 from utils.dict_utils import merge_dict_lists
 from lib.request_batch_api import request_batch_api
 from utils.dict_utils import pick_fields
+from lib.transform import (
+    to_final_schema,
+    to_avg_price_for_place,
+    to_price_and_product_rows,
+    apply_min_max_across_places,
+    build_product_pricing,
+)
 
 log = get_logger()
 
@@ -63,9 +71,53 @@ class Main:
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(place_list, f, ensure_ascii=False, indent=4)
 
+        if not self.collection_only:
+            # 7. 최종 스키마 변환 (기존 출력은 그대로 두고 별도 파일로 추가 생성)
+            self._write_final_schema_outputs(place_list)
+
         elapsed_time = time.time() - start_time
         log.info(f"작업 완료 - 총 {len(place_list)}개 항목, 소요 시간: {elapsed_time:.2f}초")
         log.info(f"결과 파일: {output_path}")
+
+    def _write_final_schema_outputs(self, place_list: List[dict]):
+        final_list = [to_final_schema(place) for place in place_list]
+
+        avg_price_rows = []
+        price_and_product_rows = []
+        for place in place_list:
+            avg_price_rows.extend(to_avg_price_for_place(place))
+            price_and_product_rows.extend(
+                to_price_and_product_rows(place.get("id"), place.get("name"), place.get("menus"))
+            )
+        apply_min_max_across_places(price_and_product_rows)
+
+        final_path = os.path.join(self.output_dir, f'{self.location}_info_new.json')
+        with open(final_path, 'w', encoding='utf-8') as f:
+            json.dump(final_list, f, ensure_ascii=False, indent=4)
+
+        avg_price_path = os.path.join(self.output_dir, f'{self.location}_avg_price_per_time.json')
+        with open(avg_price_path, 'w', encoding='utf-8') as f:
+            json.dump(avg_price_rows, f, ensure_ascii=False, indent=4)
+
+        price_and_product_path = os.path.join(self.output_dir, f'{self.location}_price_and_product.json')
+        with open(price_and_product_path, 'w', encoding='utf-8') as f:
+            json.dump(price_and_product_rows, f, ensure_ascii=False, indent=4)
+
+        rows_by_place = defaultdict(list)
+        for row in price_and_product_rows:
+            rows_by_place[row["kindergarten_id"]].append(row)
+        product_pricing_list = [
+            build_product_pricing(place.get("id"), rows_by_place.get(place.get("id"), []))
+            for place in place_list
+        ]
+
+        product_pricing_path = os.path.join(self.output_dir, f'{self.location}_product_pricing.json')
+        with open(product_pricing_path, 'w', encoding='utf-8') as f:
+            json.dump(product_pricing_list, f, ensure_ascii=False, indent=4)
+
+        log.info(
+            f"변환 결과 파일: {final_path}, {avg_price_path}, {price_and_product_path}, {product_pricing_path}"
+        )
 
     def _filter_place_list(self, place_list: List[dict]):
         keys = ['id', 'name', 'tel', 'address', 'thumbnail_s3_key', 'menu_image_s3_keys', 'road_address', 'lat', 'lng', 'business_hours', 'menus', 'review_counts', 'links', 'categories', 'services']
