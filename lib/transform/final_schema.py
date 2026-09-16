@@ -11,6 +11,7 @@ from lib.transform.enum_maps import (
     VISITOR_AMENITY_MAP,
     DOG_SERVICE_MAP,
     DOG_SAFETY_FACILITY_MAP,
+    EXPERT_CERTIFICATE_MAP,
     LINK_CODE_MAP,
 )
 from lib.transform.business_hours import to_final_business_hours
@@ -83,6 +84,7 @@ def to_final_schema(place: dict) -> dict:
         "dog_services": _true_keys_to_enum(services.get("서비스(강아지)"), DOG_SERVICE_MAP),
         "dog_safety_facilities": _true_keys_to_enum(services.get("시설(강아지)"), DOG_SAFETY_FACILITY_MAP),
         "visitor_amenities": visitor_amenities,
+        "expert_certificates": _true_keys_to_enum(services.get("전문가 자격증"), EXPERT_CERTIFICATE_MAP),
         "business_hours": to_final_business_hours(place.get("business_hours")),
         "business_services": derive_business_services(place.get("business_hours")),
         "review_count": _map_review_count(place.get("review_counts")),

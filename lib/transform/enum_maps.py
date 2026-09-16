@@ -66,6 +66,12 @@ DOG_SAFETY_FACILITY_MAP = {
     "개별 룸": "PRIVATE_ROOM",
 }
 
+EXPERT_CERTIFICATE_MAP = {
+    "훈련사": "TRAINER",
+    "반려동물관리사": "PET_CARE_MANAGER",
+    "수의사": "VET",
+}
+
 LINK_CODE_MAP = {
     "인스타그램": "INSTAGRAM",
     "블로그": "BLOG",
